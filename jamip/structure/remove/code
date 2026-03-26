@@ -1,0 +1,122 @@
+
+@njit
+def normalized(vectors):
+    vectors = vectors - np.floor(vectors)
+    vectors = np.around(vectors,8)
+    vectors = vectors - np.around(vectors)
+    return vectors
+
+@njit
+def fast_cluster(indices, diff, lattice, tol): 
+    vectors = []
+    maps = []
+    natom = len(indices)
+    for i in np.arange(natom):
+        for j in np.arange(natom):
+            for m,v in enumerate(vectors):
+                vec = normalized(diff[i,j,:]-v) @ lattice
+                if np.max(np.abs(vec)) < tol:
+                    maps.append([indices[i], indices[j], m])
+                    break
+            else:
+                m = len(vectors)
+                maps.append([indices[i],indices[j], m])
+                vectors.append(normalized(diff[i,j,:]))
+    return vectors, maps
+
+@njit
+def unique_vectors(vectors1, vectors2, lattice, tol):
+    allvectors = list(vectors1)
+    maps = np.arange(len(vectors2)) 
+    for i,v1 in enumerate(vectors2):
+        for j,v2 in enumerate(allvectors):
+            vec = normalized(v1-v2) @ lattice
+            if np.max(np.abs(vec)) < tol:
+                maps[i] = j
+                break
+        else:
+            maps[i] = len(allvectors)
+            allvectors.append(v1)
+    return allvectors, maps
+
+
+    def is_structure_equal(self, atoms1, atoms2, all_operations=False, tol=0.03):
+        # 计算atoms1向atoms2的转换矩阵
+        # lattice1 @ n1 = lattice2
+        # position1[indices] + shift = position2
+
+        # sort elements %
+        lattice = atoms1.lattice
+        elements = np.sort(atoms1.get_elements())
+        species1 = atoms1.get_elements()
+        species2 = atoms2.get_elements()
+        if not np.array_equal(np.sort(species1), np.sort(species2)):
+            raise ValueError(species1, specie2)
+            return None,None,None
+
+        coord1 = atoms1.get_positions()[np.argsort(species1)]
+        coord2 = atoms2.get_positions()[np.argsort(species2)]
+
+#        operations = self.all_operations if all_operations else self.operations
+        operations = self.lattice_symmetry.generators if all_operations else self.generators
+        for symbol,matrix in operations.items():
+            coord = coord1 @ matrix.T
+            indices = self.istranslate(coord, coord2, elements, lattice, tol=tol*10)
+
+            if not (indices is None):
+                shifts = normalized(coord - coord2[indices])
+
+                if np.max(normalized(shifts - shifts[0])) > tol:
+                    # repair shifts  
+                    values = normalized(shifts - shifts[0])
+                    values = values[np.where(values>tol)]
+                    if np.max(np.abs(normalized(values))) < tol:
+                        return symbol, np.mean(shifts, axis=1), indices
+
+                    #print(shifts)
+                    #print(symbol)
+                    #print(indices)
+                    continue
+                    raise ValueError("coord indices sort failed.")
+                return symbol, np.mean(shifts, axis=1), indices
+
+        else:
+            return None,None,None
+            raise RuntimeError("find operation failed.")
+        
+    @classmethod
+    def istranslate(self, positions1, positions2, elements=None, lattice=None, tol=0.1):
+        if elements is None:
+            elements = np.ones(len(positions1), dtype=int)
+        if lattice is None:
+            lattice = np.eye(3)
+
+        values,counts = np.unique(elements, return_counts=True)
+        new_indices = np.arange(len(elements))
+        # natom, natom, 3
+        allvectors = []
+        allmaps = []
+        for idx in np.argsort(counts):
+            indices = np.where(elements==values[idx])[0]
+            diff = positions1[indices][:,None,:]-positions2[indices][None,:,:]
+            vectors, maps = fast_cluster(indices, diff, lattice, tol)
+            maps = np.array(maps)
+
+            # merge vectors
+            if len(allvectors) == 0:
+                allvectors = vectors
+            else:
+                allvectors, indices = unique_vectors(np.array(allvectors), np.array(vectors), lattice, tol)
+                maps[:,2] = indices.take(maps[:,2])
+            allmaps.extend(maps)
+
+        maps = np.array(allmaps)
+        # match permutations
+        natom = len(elements)
+        for idx in np.unique(maps[:,2]):
+            parts = maps[np.where(maps[:,2]==idx)]
+            if len(parts) > natom: raise ValueError("Too much maps.")
+            if len(np.unique(parts[:,0]))==natom and len(np.unique(parts[:,1])) == natom:
+                    return parts[np.argsort(parts[:,0])][:,1].tolist()
+                    
+        return None

@@ -1,0 +1,10 @@
+vasp: /home/kzhou/usr/paw_pbe
+vasp_priority:
+-  _3
+-  _2
+-  ''
+-  _sv
+-  _pv
+-  _d
+-  _s
+-  _h

@@ -1,0 +1,204 @@
+base:
+   system: jamip
+   lreal: Auto
+   ismear: 0
+   npar: 4
+   sigma: 0.05
+   algo: fast
+relax:
+   nsw: 60
+   ibrion: 2
+   addgrid: true
+scf:
+   nsw: 0
+   isif: 2
+   ibrion: -1
+   lcharg: true
+soc:
+   isym: 0
+   gga_compat: false
+   lorbmom: true
+   lsorbit: true
+   saxis: 0 0 1
+hse:
+   aexx: 0.25
+   hfscreen: 0.2
+   icharg: 0
+   algo: Damped
+   lhfcalc: true
+   lwave: true
+   lmaxfock: 4
+   time: 0.4
+ldau:
+   ldau: true
+   ldautype: 2
+band:
+   ismear: 0
+   icharg: 11
+   lorbit: 11
+   istart: 1
+   lcharg: false
+dos:
+   lwave: false
+   ismear: -5
+   nedos: 3001
+   lorbit: 11
+emass:
+   mesh: 0.01
+   ismear: 0
+   icharg: 11
+   lwave: false
+   lcharg: false
+born:
+   nelmin: 5
+   ibrion: -1
+   lepsilon: True
+   lreal: false
+optics:
+   icharg: 1
+   lwave: true
+   lcharg: false
+   loptics: true
+   lorbit: 11
+   cshift: 0.05
+   nedos: 3001
+gw:
+   lspectral: true
+   nelm: 3
+   algo: scGW
+   ismear: 0
+   sigma: 0.05
+   loptics: true
+   cshift: 0.05
+   lcharg: false
+   nedos: 3001
+stm:
+   lpard: true
+   lsepk: false
+   lsepb: false
+   nbmod: -3
+   eint: -0.1
+   lorbit: 11
+   lwave: false
+   lcharg: false
+Raman:
+   isym: 0
+   nwrite: 3
+   ibrion: 7
+   lreal: false
+   lepsilon: true
+   nsw: 1
+md:
+   isym: 0
+   ibrion: 0
+   nsw: 100
+   nelmin: 3
+   potim: 1
+   tebeg: 300
+   teend: 300
+   lwave: false
+   lcharg: false
+carrier:
+   nedos: 3001
+force:
+   dim: 1 1 1
+   symprec: 0.001
+   parallel: 1
+softmode:
+   dimension: 1 1 1
+   q: 0 0 0
+   band_index: 0
+   amplitude: 0.0 10.0 0.5
+   argument: 0
+   parallel: 1
+gruneisen:
+   nsw: 50
+   isif: 4
+   ibrion: 2
+   scale: 0.003
+   parallel: 1
+partchg:
+   lwave: false
+   lcharg: false
+   lpard: true
+   lsepb: true
+   lorbit: 11
+   nsw: 0
+dielectric:
+   ibrion: 8
+   lcharg: false
+   lwave: false
+   istart: 0
+   icharg: 2
+   nsw: 2
+   lepsilon: true
+   lpead: true
+elastic:
+   lcharg: false
+   lwave: false
+   ibrion: 6
+   isif: 3
+   nfree: 4
+   potim: 0.015
+boltztrap:
+   lcharg: false
+   lwave: false
+   nsw: 0
+   kspacing: 0.1
+cohp:
+   COHPstartEnergy: -20
+   COHPendEnergy: 10
+   basisSet: pbeVaspFit2015
+   basisfunctions: 
+   AtomsIndex: 
+   nsw: 0
+   isym: -1
+   icharg: 1
+   lorbit: 12
+   lwave: true
+bader:
+   laechg: true
+   lcharg: true
+   lwave: false
+   nsw: 0
+poisson:
+   isif: 3
+   ibrion: 2
+   nsw: 100
+jdos:
+   ismear: -5
+   nedos: 3001
+   isymm: 1
+   ommin: 0
+   ommax: 10
+   lsearch: false
+unfolding:
+   lorbit: 11
+   icharg: 11
+   lcharg: false
+   lwave: true
+   mesh: 0.01
+singlet:
+   ispin: 2
+   ismear: -2
+triplet:
+   nupdown: 2
+   ispin: 2
+deformation:
+   nsw: 0
+   lvtot: true
+   icorelevel: 1 
+   axis: x y   
+   scale: 0.99 0.995 1.0 1.005 1.01   
+   parallel: 1         
+emc: 
+  ismear: 0
+  icharg: 11
+  lorbit: 11
+  istart: 1
+  algo: normal
+  emc: st3
+  mesh: 0.01
+amset:
+  symprec: 0.0001
+  distance: 0.005

@@ -1,0 +1,17 @@
+#!/bin/bash
+#SBATCH -J {{ job_name }}
+#SBATCH -p {{ queue }}
+#SBATCH -N {{ nodes }}
+#SBATCH -n {{ ntasks }}
+#SBATCH -c {{ cpu_per_task }}
+#SBATCH -t {{ walltime }}
+#SBATCH -o {{ output }}
+#SBATCH -e .error
+
+{% for line in env %}
+{{ line }}
+{% endfor %}
+
+python3 {{ script }} {{ root }} {{ outdir }} {{ pool }} > .running
+
+# CommonAdapter (SLURM) completed writing Template

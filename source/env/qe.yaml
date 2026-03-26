@@ -1,0 +1,18 @@
+base:
+   verbosity: high
+   occupations: fixed
+   press_conv_thr: 0.1
+   ibrav: 0
+relax:
+   conv_thr: 1e-06
+scf:
+   tprnfor: true
+   tstress: true
+band:
+   wf_collect: false
+   occupations: smearing
+   smearing: gaussian
+   degauss: 1e-09
+dos:
+   kspacing: 0.2
+   occupations: tetrahedra

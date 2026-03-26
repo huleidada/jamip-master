@@ -1,0 +1,15 @@
+job_name: TDOS
+walltime: 600:00:00
+manager: PBS
+queue: host3
+cores: 36
+nodes: 1
+cmd: qsub
+mpi: mpirun
+maximum: 10
+env:
+-  P_ENV=/share/apps/intel/intel2019/impi/2019.3.199/intel64
+-  export OMP_NUM_THREADS=1
+-  export PATH=$P_ENV/bin:$PATH
+-  export LD_INCLCUDE_PATH=$P_ENV/include:$LD_INCLUDE_PATH
+-  export LD_LIBRARY_PATH=$P_ENV/lib:$LD_LIBRARY_PATH

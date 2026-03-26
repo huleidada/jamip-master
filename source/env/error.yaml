@@ -1,0 +1,6 @@
+NPAR:
+-  Please remove the tag NPAR from the INCAR
+-  npar: 
+NCL:
+-  non collinear calculations require that VASP is compiled
+-  

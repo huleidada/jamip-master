@@ -1,0 +1,21 @@
+5, 'SCF.intrans',      'old',    'formatted',0
+6,'SCF.outputtrans',      'unknown',    'formatted',0
+20,'SCF.struct',         'unknown',    'formatted',0
+10,'SCF.energy',         'unknown',    'formatted',0
+48,'SCF.engre',         'unknown',    'unformatted',0
+49,'SCF.transdos',        'unknown',    'formatted',0
+50,'SCF.sigxx',        'unknown',    'formatted',0
+51,'SCF.sigxxx',        'unknown',    'formatted',0
+21,'SCF.trace',           'unknown',    'formatted',0
+22,'SCF.condtens',           'unknown',    'formatted',0
+24,'SCF.halltens',           'unknown',    'formatted',0
+30,'SCF_BZ.dx',           'unknown',    'formatted',0
+31,'SCF_fermi.dx',           'unknown',    'formatted',0
+32,'SCF_sigxx.dx',           'unknown',    'formatted',0
+33,'SCF_sigyy.dx',           'unknown',    'formatted',0
+34,'SCF_sigzz.dx',           'unknown',    'formatted',0
+35,'SCF_band.dat',           'unknown',    'formatted',0
+36,'SCF_band.gpl',           'unknown',    'formatted',0
+37,'POSCAR',                     'old',        'formatted',0
+38,'EIGENVAL',                   'old',        'formatted',0
+39,'SYMMETRY',                   'old',        'formatted',0

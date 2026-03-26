@@ -1,0 +1,348 @@
+# -*- coding: utf-8 -*-
+#!/usr/bin/env python3
+import time
+import numpy as np
+import numpy.linalg as nlg
+from ..utils.variables import default_constants
+from .structureFactory import StructureFactory
+import pandas as pd
+
+tolerate_angle_mismatch = 0.01
+tolerate_vector_mismatch = 0.04
+
+def vec_area(vector12):
+    return np.linalg.norm(np.cross(vector12[0], vector12[1]))
+
+def vec_angle(vector12):
+    cos_ = np.dot(vector12[0],vector12[1])
+    sin_ = np.linalg.norm(np.cross(vector12[0],vector12[1]))
+    return np.arctan2(sin_, cos_)
+
+def get_factors(n):
+    """
+    Generate all factors of n
+    """
+    for x in range(1, n + 1):
+        if n % x == 0:
+            yield x
+
+def gen_sl_transform_matricies(area_multiple):
+    return [
+        np.array(((i, j), (0, area_multiple / i)))
+        for i in get_factors(area_multiple)
+        for j in range(area_multiple // i)
+    ]
+
+def get_match_transformation(vector_set1, vector_set2):
+    """The tranformation matrix to conver set2 to set1"""
+    # Generate 3D lattice vectors for film super lattice
+    axis1 = np.cross(vector_set1[0], vector_set1[1])
+    axis2 = np.cross(vector_set2[0], vector_set2[1])
+    matrix1 = np.r_[vector_set1, [axis1]]
+    matrix2 = np.r_[vector_set2, [axis2]]
+    # scale %
+    matrix2 = matrix2 * (np.linalg.norm(matrix1,axis=1) / np.linalg.norm(matrix2,axis=1))[:,None]
+    # solve %
+    #transform_matrix = np.transpose(np.linalg.solve(matrix1, matrix2))
+    transform_matrix = np.linalg.solve(matrix1, matrix2)
+    return transform_matrix
+
+
+def reduce_vectors(a, b):
+    """
+    Generate independent and unique basis vectors based on the
+    methodology of Zur and McGill
+    """
+    from numpy.linalg import norm as fast_norm
+
+    if np.dot(a, b) < 0:
+        return reduce_vectors(a, -b)
+
+    if fast_norm(a) > fast_norm(b):
+        return reduce_vectors(b, a)
+
+    if fast_norm(b) > fast_norm(np.add(b, a)):
+        return reduce_vectors(a, np.add(b, a))
+
+    if fast_norm(b) > fast_norm(np.subtract(b, a)):
+        return reduce_vectors(a, np.subtract(b, a))
+
+    return [a, b]
+
+
+
+def shape_supercell_matrix(smat):
+    if smat is None:          
+        _smat = np.eye(3, dtype='intc', order='C')
+    elif len(np.ravel(smat)) == 3:
+        _smat = np.diag(smat)
+    elif len(np.ravel(smat)) == 4:
+        _smat = np.eye(3, dtype='intc', order='C')
+        _smat[:2,:2] = np.reshape(np.around(smat,0),(2,2))
+    elif len(np.ravel(smat)) == 9:
+        _smat = np.reshape(smat, (3, 3))
+    else:
+        msg = "supercell_matrix shape has to be (3,) or (3, 3)"
+        raise RuntimeError(msg)
+    return _smat
+
+class Supercell(StructureFactory):
+
+    def __init__(self, structure, supercell_matrix, **kwargs):
+        super().__init__(structure)
+        self.supercell_matrix = supercell_matrix
+
+    @property
+    def supercell_matrix(self):
+        return self._supercell_matrix
+
+    @supercell_matrix.setter
+    def supercell_matrix(self, smat):
+        self._supercell_matrix = shape_supercell_matrix(smat)
+
+    @property
+    def structure(self):
+        """
+        structure object after operation.
+        """
+        if self._supercell_matrix is not None:
+            self._structure = self.raw_structure
+            self.redefine(self._supercell_matrix)
+            self._supercell_matrix = None
+            return self._structure
+        else:
+            return self.raw_structure 
+
+class InterfaceFactory(object):
+    
+    def __init__(self, layers, isPersist=False, **kwargs):
+        """
+        Arguments:
+            layers: structure's object. tuple
+            isOperateOnSelf: Whether to operate itself.
+            isPersist (default=False): whether to save to the database.
+            
+            kwargs:
+                isCloneFullInfo (default=False): whether to clone all information of structure.
+        """
+        self._layer1 = Supercell(layers[0], supercell_matrix=None)
+        self._layer2 = Supercell(layers[1], supercell_matrix=None)
+        self._structure = None
+        # Check that the lattice vectors are perpendicular to the direction 
+
+    @property
+    def raw_layers(self):
+        """
+        raw structure.
+        """
+        return self._layer1.raw_structure, self._raw_layer2.raw_structure
+        
+    @property
+    def structure(self):
+        """
+        structure object after operation.
+        """
+
+    def match_zsl(self, max_area=400, area_tol=0.1, length_tol=0.03, angle_tol=0.01):
+        """
+        https://www.sciencedirect.com/science/article/pii/S0927025615003365#b0050
+        """
+        vec_base1 = self._layer1.structure.lattice[:2]
+        vec_base2 = self._layer2.structure.lattice[:2]
+        area1 = vec_area(vec_base1)
+        area2 = vec_area(vec_base2)
+      
+        # create mesh %
+        area_size1 = np.arange(1, int(max_area / area1))
+        area_size2 = np.arange(1, int(max_area / area2))
+        mesh1,mesh2 = np.meshgrid(area_size1, area_size2)
+        mesh1 = mesh1.ravel()
+        mesh2 = mesh2.ravel()
+
+        mask1 = np.where(np.abs(mesh1/mesh2-area2/area1)<area_tol)
+        mask2 = np.where(np.abs(mesh2/mesh1-area1/area2)<area_tol)
+        mask = np.unique(np.r_[mask1[0], mask2[0]])
+        area12 = np.c_[mesh1[mask],mesh2[mask]]
+        
+        for i,j in np.sort(area12, axis=0):
+
+            vector1 = gen_sl_transform_matricies(i) @ vec_base1 
+            vector2 = gen_sl_transform_matricies(j) @ vec_base2
+            vector1 = [reduce_vectors(v1,v2) for v1,v2 in vector1]
+            vector2 = [reduce_vectors(v1,v2) for v1,v2 in vector2]
+            length1 = np.linalg.norm(vector1, axis=-1) # [n,2]
+            length2 = np.linalg.norm(vector2, axis=-1) # [m,2]
+            length12 = np.abs( length2[None,:,:] / length1[:,None,:] - 1 )
+            # distances search %
+            mask12 = np.where((length12[:,:,0] < length_tol) & (length12[:,:,1] < length_tol))
+
+            for i,j in zip(*mask12):
+                angle1 = vec_angle(vector1[i]) 
+                angle2 = vec_angle(vector2[j]) 
+                if np.abs(angle2/angle1 - 1) < angle_tol:
+                    miller1 = np.dot(vector1[i], np.linalg.pinv(vec_base1))
+                    miller2 = np.dot(vector2[j], np.linalg.pinv(vec_base2))
+                    yield (miller1, miller2, vector1[i], vector2[j])
+
+
+    @classmethod
+    def match(self, lattice1, lattice2, nmiller=10, fix_angle=False,
+              tolerate_vector_mismatch=0.04, tolerate_angle_mismatch=0.01, **kwargs):
+        """
+        意义不大的通用函数，不考虑旋转的匹配两个平面格子
+        """
+        assert lattice1.shape==(2,2)
+        assert lattice2.shape==(2,2)
+        nmiller = np.array(nmiller, dtype=int).ravel()
+        # 遍历向量的米勒指数
+        if nmiller.size == 1:
+            n = nmiller[0]
+            N = np.mgrid[-n:n+1,-n:n+1,-n:n+1,-n:n+1].reshape(4,-1).T
+        elif nmiller.size == 2:
+            n, m = nmiller
+            N = np.mgrid[-n:n+1,-n:n+1,-m:m+1,-m:m+1].reshape(4,-1).T
+        elif nmiller.size == 4:
+            n1, n2, m1, m2 = nmiller
+            N = np.mgrid[-n1:n1+1,-n2:n2+1,-m1:m1+1,-m2:m2+1].reshape(4,-1).T
+        N = N[N.any(axis=1)]
+
+        vector1 = N[:,:2] @ lattice1                           # 向量1 
+        vector2 = N[:,2:] @ lattice2                           # 向量2
+        distances_mask = np.where(np.linalg.norm(vector1-vector2, axis=1)<tolerate_vector_mismatch)[0]       # 向量差的模长
+        # 由于使用的是向量差的模长，向量对长度相同，方向相同，无需考虑夹角问题
+        nmatch = len(distances_mask)
+
+        if nmatch > 1:
+
+            # 从向量对中选取非同向的对(行列式不为0)，当然也可以计算面积并进行截断
+            pair_mask = np.triu_indices(nmatch, k=1)
+            pair_vector11 = vector1[distances_mask[pair_mask[0]]]
+            pair_vector12 = vector1[distances_mask[pair_mask[1]]]
+
+            #npairs = len(pair_mask[0])   # 补不补到三维都一样
+            #pair_vector11 = np.c_[vector1[distances_mask[pair_mask[0]]], np.zeros((npairs,),dtype=int)]
+            #pair_vector12 = np.c_[vector1[distances_mask[pair_mask[1]]], np.zeros((npairs,),dtype=int)]
+            #pair_area = np.linalg.norm(np.cross(pair_vector11,pair_vector12,axis=1),axis=1)
+
+            if isinstance(fix_angle, (int,float)):
+                len11 = np.linalg.norm(pair_vector11, axis=1)
+                len12 = np.linalg.norm(pair_vector12, axis=1)
+                cosine=np.divide(np.einsum('ij, ij->i', pair_vector11, pair_vector12),len11*len12) #基矢A1和A2之间的余弦值
+                fix_angle_radian = fix_angle*np.pi/180
+                area_mask = np.where(np.abs(cosine-np.cos(fix_angle_radian))<tolerate_angle_mismatch) #与固定的夹角之间余弦值的差值
+
+            else:
+                pair_area = np.abs(np.cross(pair_vector11,pair_vector12,axis=1))
+                unitarea = max(vec_area(lattice1), vec_area(lattice2))
+                area_mask = np.where(pair_area >= unitarea)
+
+            # 合并掩码
+            mask1 = distances_mask[pair_mask[0]][area_mask]
+            mask2 = distances_mask[pair_mask[1]][area_mask]
+            
+            if mask1.size > 0:
+                
+                # 选择基矢A和B差值最小的方案
+                distance12 = np.linalg.norm(vector1[mask1]-vector2[mask1], axis=1) + \
+                             np.linalg.norm(vector1[mask2]-vector2[mask2], axis=1)
+                match_mask = np.where((distance12-np.min(distance12))<1e-4)
+                
+                # 按基矢A1+A2最短的方案排序
+                length12 = np.linalg.norm(vector1[mask1][match_mask], axis=1) + np.linalg.norm(vector1[mask2][match_mask]) 
+                match_mask = match_mask[0][np.argsort(length12)]
+
+                # 生成miller指数，yield返回
+                miller1 = np.stack((N[mask1,:2][match_mask], N[mask2,:2][match_mask]), axis=1)
+                miller2 = np.stack((N[mask1,2:][match_mask], N[mask2,2:][match_mask]), axis=1)
+                return miller1, miller2
+
+        return None
+
+    def twister_match(self, angle, nmiller, fix_angle=False, attach_axis=2, 
+                      tolerate_vector_mismatch=0.04, tolerate_angle_mismatch=0.01, **kwargs):
+        """
+        对上层晶格(layer2)旋转一个角度，再进行直接晶面匹配
+        """
+        layer1 = self._layer1.structure
+        layer2 = self._layer2.structure
+        # 确定2x2晶格矢量掩码
+        mesh = np.mgrid[0:3, 0:3]
+        mask = np.where((mesh[0]!=attach_axis)&(mesh[1]!=attach_axis))
+        # 计算旋转矩阵 
+        initial_angle = angle*np.pi/180
+        R = np.array([[np.cos(initial_angle),-np.sin(initial_angle)],
+                      [np.sin(initial_angle),np.cos(initial_angle)]]) 
+        # 提取晶格矢量
+        lattice1 = layer1.lattice[mask].reshape(2,2)
+        lattice2 = np.dot(layer2.lattice[mask].reshape(2,2),R)
+
+        data = self.match(lattice1, lattice2, nmiller, fix_angle, tolerate_vector_mismatch, tolerate_angle_mismatch) 
+        
+        return data
+
+
+    def attach(self, direction, angle, spacing=3.0, mismatch=0, isPersist=False, **kwargs):
+        """
+        direction: [x, y, z, dtype]
+        angle: [value, dtype]
+        lattice_match: range(0,1)
+
+        """
+        from ..materials.atom import Atom
+        from ..materials.structure import Structure
+        from ..utils.convert import any2radian, any2direct, cell2poscar
+        
+        layer1 = self._layer1.structure
+        layer2 = self._layer2.structure
+
+        # check lattice parameters
+        direction = any2direct(layer1.lattice, direction)
+        if not ((direction.count(0) == 2) and (direction.count(1) == 1)): 
+            raise ValueError('Only axis directions are supported')
+        attach_index= direction.index(1)
+
+        # rotate
+        if angle[1].lower() in ['radian','degree']:
+            angle = any2radian(angle)[0]
+            R = np.array([[np.cos(angle),-np.sin(angle)],
+                          [np.sin(angle),np.cos(angle)]])
+            mesh = np.mgrid[0:3, 0:3]
+            mask = np.where((mesh[0]!=attach_index)&(mesh[1]!=attach_index))
+            layer1.lattice[mask] = np.dot(layer1.lattice[mask],R)
+        else:  # auto matrix
+            trans = get_match_transformation(layer2.lattice[:2], layer1.lattice[:2])
+            layer2.lattice = np.dot(trans, layer2.lattice)
+
+        lattice = np.eye(3)
+        scale = None
+        for i in range(3):
+            a = layer1.lattice[i]
+            b = layer2.lattice[i]
+            if attach_index != i:
+                #rmatch = nlg.norm(a-b)  # lattice_tolerance < 1e-2
+                lattice[i] = a*(1-mismatch) + b*mismatch
+            else:
+                h1 = np.linalg.norm(a)
+                h2 = np.linalg.norm(b)
+                #amatch = vec_angle((a,b))  # angle_tolerance < 1/180*np.pi
+                h = h1+h2+spacing
+                lattice[i] = a/h1*h
+
+        layer1 = layer1.formatting('cell')
+        layer2 = layer2.formatting('cell')
+        positions1 = layer1['positions']
+        positions2 = layer2['positions']
+        # reset spacing %
+        spacing -= (1-np.max(positions1[:,attach_index])) * h1 + (np.min(positions2[:,attach_index])) * h2 
+
+        # attach atoms %
+        positions1[:,attach_index] = positions1[:,attach_index] * h1 / h
+        positions2[:,attach_index] = positions2[:,attach_index]* h2 / h + h1/h + spacing/h
+        elements = np.r_[layer1['numbers'], layer2['numbers']]
+        positions = np.r_[positions1, positions2][np.argsort(elements)]
+        elements = np.sort(elements)
+        
+        cell_new={'lattice': lattice,
+                  'positions': positions,
+                  'numbers': elements}
+        return Structure().create(raw_structure=cell2poscar(cell_new))

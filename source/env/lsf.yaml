@@ -1,0 +1,13 @@
+job_name: TDOS
+queue: vasp
+manager: LSF
+ntasks: 28
+cores: 28
+nodes: 1
+cmd: bsub <
+mpi: mpirun
+maximum: 10
+env:
+-  source /data/software/compiler/intel/composer_xe_2016.3.210/bin/compilervars.sh intel64
+-  source /data/home/ljzhang/workplace/kzhou/.bashrc
+-  export PATH=/data/software/mpi/intelmpi/5.1.3.210/intel64/bin:$PATH

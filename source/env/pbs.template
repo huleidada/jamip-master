@@ -1,0 +1,17 @@
+#!/bin/bash
+#PBS -N {{ job_name }}
+#PBS -q {{ queue }}
+#PBS -l nodes={{ nodes }}:ppn={{ cores }}
+#PBS -l walltime={{ walltime }}
+#PBS -o {{ output }}
+#PBS -e .error
+
+cd $PBS_O_WORKDIR
+
+{% for line in env %}
+{{ line }}
+{% endfor %}
+
+python3 {{ script }} {{ root }} {{ outdir }} {{ pool }} > .running
+
+# CommonAdapter (PBS) completed writing Template

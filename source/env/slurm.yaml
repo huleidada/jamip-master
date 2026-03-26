@@ -1,0 +1,12 @@
+job_name: JAMIP
+queue: szsc
+manager: SLURM
+nodes: 1
+ntasks: 56
+cmd: sbatch
+mpi: srun
+maximum: 10
+env:
+-  module purge
+-  module load compiler/ intel/2017.5.239
+-  module load mpi /hpcx/2.4.1/ intel-2017.5.239

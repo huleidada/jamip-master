@@ -1,0 +1,33 @@
+idx,pointgroup,infrared,raman,hyper_raman
+1,1,A,A,A
+2,-1,Au,Ag,Au
+3,2,A B,A B,A B
+4,m,A' A'',A' A'',A' A''
+5,2/m,Au Bu,Ag Bg,Au Bu
+6,222,B1 B2 B3,A B1 B2 B3,A B1 B2 B3
+7,mm2,A1 B1 B2,A1 A2 B1 B2,A1 A2 B1 B2
+8,mmm,B1u B2u B3u,Ag B1g B2g B3g,Au B1u B2u B3u
+9,4,A E,A B E,A B E
+10,-4,B E,A B E,A B E
+11,4/m,Au Eu,Ag Bg Eg,Au Bu Eu
+12,422,A2 E,A1 B1 B2 E,A1 A2 B1 B2 E
+13,4mm,A1 E,A1 B1 B2 E,A1 A2 B1 B2 E
+14,-42m,B2 E,A1 B1 B2 E,A1 A2 B1 B2 E
+15,4/mmm,A2u Eu,A1g B1g B2g Eg,A1u A2u B1u B2u Eu
+16,3,A E,A E,A E
+17,-3,Au Eu,Ag Eg,Au Eu
+18,32,A2 E,A1 E,A1 A2 E
+19,3m,A1 E,A1 E,A1 A2 E
+20,-3m,A2u Eu,A1g Eg,A1u A2u Eu
+21,6,A E1 E2,A E1 E2,A B E1 E2
+22,-6,A' E',A' E' E'',A' A'' E' E''
+23,6/m,Au E1u,Ag E1g E2g,Au Bu E1u E2u
+24,622,A2 E1,A1 E1 E2,A1 A2 B1 B2 E1 E2
+25,6mm,A1 E1,A1 E1 E2,A1 A2 B1 B2 E1 E2
+26,-6m2,A2'' E',A1' E' E'',A1' A2' A1'' A2'' E' E''
+27,6/mmm,A2u E1u,A1g E2g E1g,A1u A2u B1u B2u E1u E2u
+28,23,T,A E T,A E T
+29,m-3,Tu,Ag Eg Tg,Au Eu Tu
+30,432,T1,A1 E T2,A2 E T1 T2
+31,-43m,T2,A1 E T2,A1 E T1 T2
+32,m-3m,T1u,A1g Eg T2g,A2u Eu T2u T1u

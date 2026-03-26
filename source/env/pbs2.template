@@ -1,0 +1,16 @@
+#!/bin/bash
+#PBS -N {{ job_name }}
+#PBS -q {{ queue }}
+#PBS -pe mpi {{ cores }}
+#PBS -V
+#PBS -cwd
+#PBS -o {{ output }}
+#PBS -e .error
+
+{% for line in env %}
+{{ line }}
+{% endfor %}
+
+python3 {{ script }} {{ root }} {{ outdir }} {{ pool }} > .running
+
+# CommonAdapter (PBS) completed writing Template

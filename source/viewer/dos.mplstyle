@@ -1,0 +1,9 @@
+figure.figsize: 12,6 
+figure.dpi: 144
+axes.titlesize: 24
+axes.labelsize: 20
+legend.fontsize: 18
+xtick.labelsize: 20
+ytick.labelsize: 20
+lines.linewidth: 2.5
+lines.markersize: 10
