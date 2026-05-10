@@ -1,0 +1,13 @@
+.DS_Store
+.idea/
+
+__pycache__/
+*.py[cod]
+*$py.class
+
+*.egg-info/
+*.egg
+dist/
+build/
+.pytest_cache/
+.mypy_cache/
