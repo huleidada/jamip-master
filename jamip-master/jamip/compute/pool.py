@@ -42,6 +42,7 @@ __status__ = "underdeveloped"
 
 from collections import UserDict
 import logging
+import os
 import pathlib
 import json
 import lmdb
@@ -201,6 +202,20 @@ class PoolDict(UserDict):
 
         return '{' + ', '.join(items) + '}'
 
+    def close(self):
+        """Release LMDB handles so the same path can be reopened in-process."""
+        env = getattr(self, 'env', None)
+        if env is None:
+            return
+        try:
+            env.sync()
+        except Exception:
+            pass
+        try:
+            env.close()
+        finally:
+            self.env = None
+
     def update(self, other=None, **kwargs):
         """Support dict.update() """
         with self._get_txn(write=True) as txn:
@@ -260,7 +275,9 @@ class Pool:
             return self.kv
  
         def __exit__(self, *args):
-            pass
+            if getattr(self, 'kv', None) is not None:
+                self.kv.close()
+                self.kv = None
 
     def __init__(self, pool=None, **kwargs):
 
@@ -362,7 +379,8 @@ class Pool:
                     f.truncate()
                     pickle.dump(pool, f)
         finally:
-            logging.info(f'Pool save in {path}')
+            if os.environ.get('JAMIP_PREPARE_JSON') != '1':
+                logging.info(f'Pool save in {path}')
             del pool
 
         return self

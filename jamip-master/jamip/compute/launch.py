@@ -1,5 +1,7 @@
 import os
+import json
 import logging
+import pathlib
 
 class LaunchTasks(object):
 
@@ -21,6 +23,10 @@ class LaunchTasks(object):
     def __prepare__(self, params=None, *args, **kwargs):
         import sys
 
+        emit_json = params.pop('json', False)
+        if emit_json:
+            os.environ['JAMIP_PREPARE_JSON'] = '1'
+
         try:
             if os.path.isfile('input.py'):
                 sys.path.append(os.getcwd())
@@ -30,7 +36,44 @@ class LaunchTasks(object):
         except:
             raise IOError ('please construct input.py firstly..')
 
-        jamip_input(params)  
+        try:
+            jamip_input(params)
+            if emit_json:
+                self.__prepare_emit_json(params)
+        finally:
+            os.environ.pop('JAMIP_PREPARE_JSON', None)
+
+    def __prepare_emit_json(self, params):
+        """Write prepare result as JSON to stdout (for scripting)."""
+        from .pool import Pool
+
+        pool_arg = params.get('pool')
+        if pool_arg:
+            first = pool_arg[0] if isinstance(pool_arg, list) else pool_arg
+            pool_path = pathlib.Path(first).resolve()
+        else:
+            pool_path = pathlib.Path('pool/jamip').resolve()
+
+        tasks = []
+        with Pool.open(pool_path, 'r') as pool:
+            for key in sorted(pool.keys()):
+                row = dict(pool[key])
+                tid = row.get('id')
+                if isinstance(tid, str):
+                    try:
+                        row['id'] = int(tid.strip())
+                    except ValueError:
+                        pass
+                tasks.append({'path': key, **row})
+
+        doc = {
+            'ok': True,
+            'run': 'prepare',
+            'pool_file': str(pool_path),
+            'task_count': len(tasks),
+            'tasks': tasks,
+        }
+        print(json.dumps(doc, ensure_ascii=False, indent=2))
 
     def get_pool(self, pool, **kwargs):
         from jamip.utils.logger import full_path
@@ -124,18 +167,14 @@ class LaunchTasks(object):
         single = SingleManager(root)
         single.load_env()
 
-        with pool.open(fpool, 'w') as p:
- 
-            # according to the prior order %  
-            for outdir in sorted(p.items(),key=lambda v:v[1]['prior']):
- 
-                outdir = outdir[0]          # relative path & key % 
-                value = p[outdir]                    # real-time value %
-                if value['status'] in ['W','R'] and value['prior'] > 0:
-                    single.submit(fpool, outdir)
-                    p.update_jobid(outdir, 0)
-                else:
-                    logging.info("JOB Finished : %s" %outdir)
+        with pool.open(fpool, 'r') as p:
+            ordered = sorted(p.items(), key=lambda v: v[1]['prior'])
+
+        for outdir, value in ordered:
+            if value['status'] in ['W', 'R'] and value['prior'] > 0:
+                single.submit(fpool, outdir)
+            else:
+                logging.info("JOB Finished : %s" % outdir)
 	
     def __skip__(self, params, outdir=None):
 

@@ -3,11 +3,11 @@ import pathlib
 
 class SingleManager:
 
-    def __init__(self,root=None):
-        if root == None:
-            self.rootdir = pathlib.Path(root).absolute()
+    def __init__(self, root=None):
+        if root is None:
+            self.rootdir = pathlib.Path.cwd().resolve()
         else:
-            self.rootdir = pathlib.Path.cwd()
+            self.rootdir = pathlib.Path(root).resolve()
 
     def load_env(self):
         import subprocess

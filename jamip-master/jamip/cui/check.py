@@ -6,6 +6,7 @@ class __CheckStatus(object):
     def __init__(self, params=None, *args, **kwargs):
 
         self._func = None
+        self._emit_json = params.pop('json', False)
 
         if params['check'] in ['show','converge','prepare','status','reduce']:
             if 'pool' in params:
@@ -44,7 +45,8 @@ class __CheckStatus(object):
         if self._func is None:
             pool = Pool().loader(self.poolname)
             func = next(iter(pool.values()))
-            print(type(func))
+            if not self._emit_json:
+                print(type(func))
             if isinstance(func, SetVasp):
                 from jamip.abtools.vasp.check import CheckStatus
             elif isinstance(func, SetQE):
@@ -149,6 +151,7 @@ class __CheckStatus(object):
 
 
     def __qstat(self,params):
+        import json
         from jamip.compute.manager import TaskManager
         
         cwd = str(pathlib.Path.cwd().resolve())
@@ -156,31 +159,53 @@ class __CheckStatus(object):
 
         if order == 'qstat':
             tm = TaskManager('pbs') 
-
         elif order == 'bjobs':
             tm = TaskManager('lsf') 
-
         elif order == 'squeue':
             tm = TaskManager('slurm') 
+
+        jobs = []
 
         if 'pool' in params:
             for jobid in params['pool']:
                 jobid = str(jobid)
                 if jobid and jobid.isdigit():
                     abspath = tm.get_task_by_id(jobid)
+                    entry = {'id': jobid, 'path': abspath}
                     if len(abspath) > 30 and abspath.startswith(cwd):
-                        print(jobid,':', abspath[len(cwd)+1:])
-                    else:
-                        print(jobid,':',abspath)
-
+                        entry['path_relative_to_cwd'] = abspath[len(cwd)+1:]
+                    jobs.append(entry)
         else:
             jobdf = tm.get_task_by_user()
             if len(jobdf) != 0:
-                for job in jobdf.itertuples(): #[['id','path']]:
-                    if len(job.path) > 30 and job.path.startswith(cwd):
-                        print(job.id,':', job.path[len(cwd)+1:])
-                    else:
-                        print(job.id,':', job.path)
+                for job in jobdf.itertuples():
+                    abspath = job.path
+                    entry = {
+                        'id': str(job.id),
+                        'status': str(job.status),
+                        'path': abspath,
+                    }
+                    if len(abspath) > 30 and abspath.startswith(cwd):
+                        entry['path_relative_to_cwd'] = abspath[len(cwd)+1:]
+                    jobs.append(entry)
+
+        if self._emit_json:
+            print(json.dumps({
+                'ok': True,
+                'check': order,
+                'cwd': cwd,
+                'jobs': jobs,
+                'job_count': len(jobs),
+            }, ensure_ascii=False, indent=2, default=str))
+            return
+
+        for entry in jobs:
+            jid = entry['id']
+            abspath = entry['path']
+            if 'path_relative_to_cwd' in entry:
+                print(jid, ':', entry['path_relative_to_cwd'])
+            else:
+                print(jid, ':', abspath)
         
     def __form_converge(self):
         """
@@ -326,50 +351,117 @@ class __CheckStatus(object):
     def __form(self):
         from jamip.utils.views import shellform 
         import pandas as pd
+        import json
+
+        def _coerce_job_id(raw):
+            if isinstance(raw, int):
+                return raw
+            if isinstance(raw, str):
+                try:
+                    return int(raw.strip())
+                except ValueError:
+                    return raw
+            return raw
 
         data = []
-        # main-task-pool %
+        columns = None
+
         if self.poolname.exists():
-            # load tasks %
             pool = Pool().loader(self.poolname)
             for func in pool.values():
                 tasks = [key for key in func.tasks.keys()]
-                #break
+                break
+            if not self._emit_json:
                 print(tasks)
 
             columns = ['id','prior','status'] + tasks + ['path']
             root = self.poolname.parent
-         
-            # load pool %
+
             with Pool.open(self.poolname, 'r') as pool:
-                for key,value in pool.items():
-                    outdir = key
-                    row = [int(value['id']), value['prior'], value['status']]
-                 
-                    # get task status %
+                for path_key, value in pool.items():
+                    outdir = path_key
+                    row = [_coerce_job_id(value['id']), value['prior'], value['status']]
+
                     if value['status'] in ['C','R'] or value['prior'] < 9:
                         status = self.func.load_status(root/outdir)
-                        for key in tasks:
-                            if key in status:
-                                row.append(status[key]['status'])
+                        for task_name in tasks:
+                            if task_name in status:
+                                row.append(status[task_name]['status'])
                             else:
                                 row.append(None)
                     else:
                         row += [None] * len(tasks)
-         
+
                     row.append(outdir)
                     data.append(row)
 
         else:
-            #sub-task-pool
-            print("[Warning] - Read Data file failed. Try read state file only.")
+            if not self._emit_json:
+                print("[Warning] - Read Data file failed. Try read state file only.")
+                print(f"  → 未找到任务池数据文件（应与 -f 同名的 *.pool）:")
+                print(f"     {self.poolname.resolve()}")
+                print("  → 请先在当前目录成功执行: jp -r prepare -f <同名.pool>")
+                print("  → 若 prepare 中途报错退出（例如缺少 pots/Si/POTCAR 或未设置 JAMIP_PAW_PBE），不会生成该文件。")
 
             columns = ['row', 'prior', 'status']
-            # load pool %
             with Pool.open(self.poolname, 'r') as pool:
-                for key,value in pool.items():
-                    row = [key, value['prior'], value['status']]
+                for path_key, value in pool.items():
+                    row = [path_key, value['prior'], value['status']]
                     data.append(row)
+
+        if self._emit_json:
+            workflow_steps = None
+            if self.poolname.exists() and columns and 'path' in columns:
+                workflow_steps = [c for c in columns if c not in ('id', 'prior', 'status', 'path')]
+
+            rows_out = []
+            for row in data:
+                rowd = dict(zip(columns, row))
+                if workflow_steps:
+                    for step in workflow_steps:
+                        rowd[step] = rowd.get(step) is True
+                rows_out.append(rowd)
+
+            payload = {
+                'ok': True,
+                'check': 'show',
+                'pool_file': str(self.poolname.resolve()),
+                'pool_data_file_exists': self.poolname.exists(),
+                'columns': columns,
+                'rows': rows_out,
+                'row_count': len(rows_out),
+            }
+            if not self.poolname.exists():
+                payload['hint_zh'] = (
+                    '未找到与 -f 同名的 pickle 任务池文件；请先在同一目录成功运行 jp -r prepare。'
+                    'prepare 若因赝势等错误退出则不会生成该文件，show 只会显示空表。'
+                )
+            if workflow_steps is not None:
+                payload['workflow_steps'] = workflow_steps
+                payload['hint_zh'] = (
+                    '每条 structure 对应 workflow 子步骤是否完成；'
+                    'pool_status 为池级调度状态（英文首字母）：'
+                    'W=Waiting 等待投递/排队（不是「完成」）；'
+                    'R=Running 运行中；'
+                    'C=Complete 池里本条已标记完成。'
+                    'steps / rows 里各步布尔：true=该步已成功，false=尚未成功'
+                )
+                structures = []
+                for rowd in rows_out:
+                    steps_bool = {step: rowd[step] for step in workflow_steps}
+                    done_n = sum(steps_bool.values())
+                    total = len(workflow_steps)
+                    structures.append({
+                        'output_path': rowd['path'],
+                        'job_id': rowd['id'],
+                        'prior': rowd['prior'],
+                        'pool_status': rowd['status'],
+                        'steps': steps_bool,
+                        'progress': f'{done_n}/{total}',
+                    })
+                payload['structures'] = structures
+            print(json.dumps(payload, ensure_ascii=False, indent=2, default=str))
+            return
 
         data = pd.DataFrame(data, columns=columns)
         shellform(data)

@@ -48,21 +48,22 @@ def default_dump(obj):
     else:
         return obj
 
-def load_yaml(path:str):
+def load_yaml(path, strict: bool = True):
 
+    path = os.fspath(path)
     data = None
-    if os.path.exists(path): 
+    if os.path.exists(path):
         try:
             with open(path, 'r') as f:
-                # ruamel.yaml.version_info < (0, 15)
-                # params = yaml.safe_load(f)
                 yml = ruamel.yaml.YAML(typ='safe', pure=True)
                 data = yml.load(f)
                 logging.debug("Load YAML : %s" %path)
         except Exception as e:
             logging.error("YAML Syntax Error : %s" %path)
             logging.error("YAML Detail : %s" %repr(e))
-            exit()
+            if strict:
+                exit()
+            return None
 
     return data
 

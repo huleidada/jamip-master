@@ -193,8 +193,9 @@ class PoolTools:
         '''
         create potential configuration file with default format
         '''
-        params = load_yaml('.potential') 
-        if params == None: params = {}
+        params = load_yaml('.potential', strict=False)
+        if params is None:
+            params = {}
 
         maps = {}
         for key,value in self.pool._pool.items():
@@ -204,18 +205,19 @@ class PoolTools:
             else:
                 maps[key]['files'] = value.get_potential_files(value.structure)
 
-        with open('.potential','w') as f:
-            for key,value in maps.items():
-                f.write(f'{key}: # {" ".join(value["species"])}\n')
-                for file in value['files']:
-                    f.write(f'-  {file}\n')
+        doc = {key: val['files'] for key, val in maps.items()}
+        dump_yaml(doc, '.potential')
 
     def save(self,file ='pool/jamip', mode='n', prior=9):
 
-        basestatus = {'status': 'W', 'prior': prior, 'id': '%8s'%-1}  
-        self.pool.save(file, mode)    
+        basestatus = {'status': 'W', 'prior': prior, 'id': -1}
+        self.pool.save(file, mode)
         with self.pool.open(file, mode) as pool:
             for key in self.pool.joblist:
                 pool[key] = basestatus
-                print(pool.values())
+        joblist = list(self.pool.joblist)
+        if os.environ.get('JAMIP_PREPARE_JSON') != '1':
+            logging.info('Prepare: queued %d task(s) -> %s', len(joblist), os.path.abspath(file))
+            for key in sorted(joblist):
+                logging.info('  - %s (status=%s, prior=%s)', key, basestatus['status'], basestatus['prior'])
  

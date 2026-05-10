@@ -367,7 +367,7 @@ class VaspFlow(WorkFlow, CheckStatus):
         self.extra = extra_dict
 
         # initialize vasp potential dict %
-        potential_dict = load_yaml(self.cluster.root/'.potential')
+        potential_dict = load_yaml(self.cluster.root / '.potential', strict=False)
         if potential_dict is None or outdir not in potential_dict:
             self.potential = vasp.get_potential(vasp.structure)
         else:

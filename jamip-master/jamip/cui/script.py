@@ -16,8 +16,6 @@ def main():
         print(get_package_path())
         return
 
-    print(parse)
- 
     if 'run' in parse:
         from jamip.compute import LaunchTasks
         run_logger()

@@ -9,6 +9,7 @@ class __ParseProcess(object):
         parser = self.__get_parse__()
         argcomplete.autocomplete(parser)
         args = parser.parse_args()
+        want_json = getattr(args, 'emit_json', False)
         # (options, args) =self.__get_parse__().parse_args()
         #print(args)
  
@@ -22,21 +23,29 @@ class __ParseProcess(object):
         # # fast data processing %
         if args.output:
             all_option['output'] = args.output
+            if want_json:
+                all_option['json'] = True
             return all_option
 
         # # vasp_tools %
         if args.vasp_tools:
             all_option['vasp_tools'] = args.vasp_tools
+            if want_json:
+                all_option['json'] = True
             return all_option
 
         # # cp2k_tools %
         if args.cp2k_tools:
             all_option['cp2k_tools'] = args.cp2k_tools
+            if want_json:
+                all_option['json'] = True
             return all_option
 
         # #input examples % 
         if args.input:
             all_option['input'] = args.input
+            if want_json:
+                all_option['json'] = True
             return all_option
 	
         # cluster environments % 
@@ -55,7 +64,9 @@ class __ParseProcess(object):
         # #run/output the required files for calc % 
         if args.submit:
             all_option['run'] = args.submit
-    
+        if want_json:
+            all_option['json'] = True
+
         if args.phonon:
             all_option['phonon'] = args.phonon
     
@@ -143,7 +154,10 @@ class __ParseProcess(object):
 
         parser.add_argument('-f', '--file', dest='pool', action='store', nargs='+',
                          type=pathlib.Path, default=None, help='Pool name for storing the calculating data.\n')
-        
+
+        parser.add_argument('--json', dest='emit_json', action='store_true', default=False,
+                         help='Machine-readable JSON on stdout: prepare（任务池）; check qstat/squeue/bjobs（调度器作业）; check show（本地池步骤状态）。prepare 时抑制相关 INFO。\n')
+
         parser.add_argument('--soft', dest='abtools', action='store',
                          type=str, default=None, help='Abtools for calculating data.\n')
 
