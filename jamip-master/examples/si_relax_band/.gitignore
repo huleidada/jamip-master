@@ -1,0 +1,5 @@
+# prepare 在本目录生成的中间文件（勿提交）
+.extra
+.link
+.potential
+*.pool

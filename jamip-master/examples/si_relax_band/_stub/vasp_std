@@ -1,0 +1,4 @@
+#!/bin/sh
+# 示例占位：请改为本机 VASP 可执行文件路径（如 vasp_std），或在 input.py 中修改 vasp.program。
+echo "jamip example: stub VASP (no calculation performed)"
+exit 0

@@ -1,0 +1,15 @@
+Si relax / scf / band 示例（JAMIP）
+
+前置条件
+- 已安装本仓库 jamip-master（pip / setup.py），并执行 install.sh 将 source 复制到 ~/.jamip（Prepare.cluster 需要 ~/.jamip/env 下的模板）。
+- 将 _stub/vasp_std 换成本机真实 VASP，或将 input.py 中 vasp.program 改为实际路径。
+- POTCAR 目录 _stub/paw_pbe 仅为占位；正式计算请换为与赝势库一致的 POTCAR。
+
+生成任务池
+  cd examples/si_relax_band
+  jp -r prepare -f si_relax_band.pool
+
+本地文件说明
+- Input/POSCAR    结构输入
+- .cluster / .incar   集群与 INCAR 模板（可由 source/env 拷贝后自行修改）
+- input.py        jamip_input 定义
